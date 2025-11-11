@@ -253,7 +253,7 @@ export const PriceChart = ({
             strokeDasharray="4 4"
             label={{
               value: `Entry: ${formatPrice(entryPrice)}`,
-              position: 'insideTopRight',
+              position: 'insideTopLeft',
               fill: '#3B82F6',
               fontSize: 10,
               fontWeight: 600,
@@ -270,7 +270,7 @@ export const PriceChart = ({
               strokeDasharray="4 4"
               label={{
                 value: `Liq: ${formatPrice(liquidationPrice)}`,
-                position: 'insideBottomRight',
+                position: 'insideTopRight',
                 fill: '#EF4444',
                 fontSize: 10,
                 fontWeight: 600,
