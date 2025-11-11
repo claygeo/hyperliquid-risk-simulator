@@ -105,25 +105,12 @@ export const PositionStats = ({ position, simulationState }: PositionStatsProps)
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="mb-3">
-          <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
-            <span>Entry</span>
-            <span className="font-mono">{distanceToLiq.toFixed(2)}% to liquidation</span>
-            <span>Liquidation</span>
+        {/* Distance to liquidation - no progress bar */}
+        <div className="mb-3 text-center">
+          <div className="text-2xl font-bold mono text-gray-300">
+            {distanceToLiq.toFixed(2)}%
           </div>
-          <div className="h-2 bg-gray-900 rounded-sm overflow-hidden">
-            <div
-              className={`h-full transition-all duration-300 ${
-                isHighRisk
-                  ? 'bg-gradient-to-r from-red-500 to-red-600'
-                  : isMediumRisk
-                  ? 'bg-gradient-to-r from-orange-500 to-orange-600'
-                  : 'bg-gradient-to-r from-emerald-500 to-emerald-600'
-              }`}
-              style={{ width: `${Math.min(Math.max(liquidationProgress, 0), 100)}%` }}
-            />
-          </div>
+          <div className="text-xs text-gray-500 mt-1">to liquidation</div>
         </div>
 
         {/* Price levels */}

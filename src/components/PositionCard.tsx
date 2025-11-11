@@ -116,24 +116,10 @@ export const PositionCard = ({ position, isSelected, onClick }: PositionCardProp
         </div>
       </div>
 
-      {/* Liquidation Bar - Minimal */}
-      <div>
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-          <span>Liquidation</span>
-          <span className="font-mono">{formatCurrency(liquidationPrice)}</span>
-        </div>
-        <div className="h-1.5 bg-gray-900 rounded-sm overflow-hidden">
-          <div
-            className={`h-full transition-all duration-300 ${
-              isHighRisk
-                ? 'bg-gradient-to-r from-red-500 to-red-600'
-                : isMediumRisk
-                ? 'bg-gradient-to-r from-orange-500 to-orange-600'
-                : 'bg-gradient-to-r from-emerald-500 to-emerald-600'
-            }`}
-            style={{ width: `${Math.min(Math.max(liquidationProgress, 0), 100)}%` }}
-          />
-        </div>
+      {/* Liquidation Price - Simple */}
+      <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-800/50">
+        <span className="text-gray-500">Liquidation</span>
+        <span className="font-mono text-gray-300 font-semibold">{formatCurrency(liquidationPrice)}</span>
       </div>
     </button>
   );
