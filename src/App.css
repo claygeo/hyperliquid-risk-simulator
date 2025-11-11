@@ -1,0 +1,285 @@
+/* Additional app-specific styles and animations */
+
+#root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Background gradient animation */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient {
+  background: linear-gradient(-45deg, #000000, #1a1a2e, #0f0f23, #16213e);
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input, a {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Mobile-specific touch effects */
+@media (max-width: 768px) {
+  /* Larger touch targets */
+  button {
+    min-height: 44px;
+    position: relative;
+  }
+
+  /* Touch feedback */
+  button:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+  }
+
+  /* Prevent scroll bounce on iOS */
+  body {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100vh;
+  }
+
+  #root {
+    height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Bottom sheet animation */
+  @keyframes sheet-slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .sheet-enter {
+    animation: sheet-slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* Swipe indicator */
+  .swipe-indicator {
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    margin: 12px auto;
+  }
+}
+
+/* Loading states */
+.skeleton-loader {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite ease-in-out;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Number counter animation */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.counter-animation {
+  animation: count-up 0.3s ease-out;
+}
+
+/* Pulse animation for live data */
+@keyframes live-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.live-indicator {
+  position: relative;
+}
+
+.live-indicator::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -20px;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: live-pulse 2s infinite;
+}
+
+/* Chart hover effects */
+.recharts-layer:hover {
+  filter: brightness(1.1);
+  transition: filter 0.2s ease;
+}
+
+/* Success animation */
+@keyframes success-bounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.success-animation {
+  animation: success-bounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Danger shake animation */
+@keyframes danger-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
+
+.danger-shake {
+  animation: danger-shake 0.5s ease-in-out;
+}
+
+/* Glow effect for important elements */
+.glow-effect {
+  box-shadow: 
+    0 0 20px rgba(59, 130, 246, 0.5),
+    0 0 40px rgba(59, 130, 246, 0.3),
+    0 0 60px rgba(59, 130, 246, 0.1);
+}
+
+/* Smooth scroll for mobile */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar on mobile but keep functionality */
+@media (max-width: 768px) {
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Ripple effect for buttons */
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 1;
+}
+
+.ripple:active::before {
+  animation: ripple 0.6s ease-out;
+}
+
+/* Performance optimizations */
+.hardware-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Prevent text selection during swipe */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
