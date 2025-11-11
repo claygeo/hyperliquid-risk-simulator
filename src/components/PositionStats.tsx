@@ -7,22 +7,24 @@ interface PositionStatsProps {
 
 export const PositionStats = ({ position, simulationState }: PositionStatsProps) => {
   const isSimulating = simulationState.isSimulating;
-  const currentPrice = isSimulating ? simulationState.simulatedPrice! : position.currentPrice;
-  const unrealizedPnl = isSimulating ? simulationState.simulatedPnl! : position.unrealizedPnl;
+  const currentPrice = isSimulating ? (simulationState.simulatedPrice ?? position.currentPrice) : position.currentPrice;
+  const unrealizedPnl = isSimulating ? (simulationState.simulatedPnl ?? position.unrealizedPnl) : position.unrealizedPnl;
   const roi = (unrealizedPnl / position.margin) * 100;
 
+  // Handle nullable liquidationPrice
+  const liquidationPrice = position.liquidationPrice ?? 0;
+
   // Calculate distance to liquidation
-  const distanceToLiq = Math.abs((position.liquidationPrice - currentPrice) / currentPrice) * 100;
+  const distanceToLiq = liquidationPrice > 0 ? Math.abs((liquidationPrice - currentPrice) / currentPrice) * 100 : 100;
   
   // Calculate progress toward liquidation (0% = at entry, 100% = at liquidation)
-  const priceRange = position.liquidationPrice - position.entryPrice;
+  const priceRange = liquidationPrice - position.entryPrice;
   const currentDistance = currentPrice - position.entryPrice;
-  const liquidationProgress = (currentDistance / priceRange) * 100;
+  const liquidationProgress = priceRange !== 0 ? (currentDistance / priceRange) * 100 : 0;
 
   // Risk level determination
   const isHighRisk = distanceToLiq < 5;
   const isMediumRisk = distanceToLiq >= 5 && distanceToLiq < 10;
-  const isLowRisk = distanceToLiq >= 10;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -36,6 +38,12 @@ export const PositionStats = ({ position, simulationState }: PositionStatsProps)
   const formatPercent = (value: number) => {
     return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
   };
+
+  // Get asset name - handle both 'coin' and 'asset' fields
+  const assetName = (position as any).coin || (position as any).asset || 'UNKNOWN';
+  
+  // Normalize side to uppercase for comparison
+  const normalizedSide = position.side.toUpperCase();
 
   return (
     <div className="space-y-3">
@@ -139,7 +147,7 @@ export const PositionStats = ({ position, simulationState }: PositionStatsProps)
           <div>
             <div className="text-gray-500 mb-1">Liquidation</div>
             <div className="font-mono font-bold text-red-400">
-              {formatCurrency(position.liquidationPrice)}
+              {formatCurrency(liquidationPrice)}
             </div>
           </div>
         </div>
@@ -166,15 +174,15 @@ export const PositionStats = ({ position, simulationState }: PositionStatsProps)
         <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-800/50">
           <div>
             <div className="text-lg font-bold text-gray-100">
-              {position.asset}
+              {assetName}
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                position.side === 'LONG'
+                normalizedSide === 'LONG'
                   ? 'bg-emerald-950/50 text-emerald-400'
                   : 'bg-red-950/50 text-red-400'
               }`}>
-                {position.side}
+                {normalizedSide}
               </span>
               <span className="text-xs font-bold text-gray-400">
                 {position.leverage}X
@@ -194,7 +202,7 @@ export const PositionStats = ({ position, simulationState }: PositionStatsProps)
           <div>
             <div className="text-gray-500 mb-1">Size</div>
             <div className="font-mono font-bold text-gray-300">
-              {position.size.toFixed(4)} {position.asset}
+              {position.size.toFixed(4)} {assetName}
             </div>
           </div>
           <div className="text-right">

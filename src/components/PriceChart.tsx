@@ -1,13 +1,12 @@
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
   Area,
-  ComposedChart
+  ComposedChart,
+  Line
 } from 'recharts';
 import { Position, SimulationState, PriceData, CandleData } from '../types';
 
@@ -56,28 +55,32 @@ export const PriceChart = ({
   
   // Use simulation data if simulating, otherwise use candle data
   const isSimulating = simulationState.isSimulating;
-  const currentPrice = isSimulating ? simulationState.simulatedPrice! : position.currentPrice;
+  const currentPrice = isSimulating ? (simulationState.simulatedPrice ?? position.currentPrice) : position.currentPrice;
   const entryPrice = position.entryPrice;
-  const liquidationPrice = position.liquidationPrice;
+  const liquidationPrice = position.liquidationPrice ?? 0;
 
   // Prepare chart data
   let chartData: Array<{ timestamp: number; price: number; displayTime: string }> = [];
 
   if (isSimulating && priceHistory.length > 0) {
     // Use simulation price history
-    chartData = priceHistory.map(point => ({
-      timestamp: point.timestamp,
-      price: point.price,
-      displayTime: formatTime(point.timestamp)
-    }));
+    chartData = priceHistory.map(point => {
+      const ts = (point as any).timestamp ?? Date.now();
+      const price = (point as any).price ?? 0;
+      return {
+        timestamp: ts,
+        price: price,
+        displayTime: formatTime(ts)
+      };
+    });
   } else if (candleData.length > 0) {
     // Use actual candle data - be very defensive
     console.log('Sample candle data:', candleData[0]); // Debug
     
     chartData = candleData.map(candle => {
       // Try to get timestamp from various possible fields
-      const ts = candle.timestamp || candle.time || candle.t || Date.now();
-      const price = candle.close || candle.c || 0;
+      const ts = (candle as any).timestamp || (candle as any).time || (candle as any).t || Date.now();
+      const price = (candle as any).close || (candle as any).c || 0;
       
       return {
         timestamp: ts,
@@ -98,15 +101,16 @@ export const PriceChart = ({
 
   // Calculate Y-axis domain with padding
   const prices = chartData.map(d => d.price);
-  const allPrices = [...prices, entryPrice, liquidationPrice, currentPrice];
+  const allPrices = [...prices, entryPrice, liquidationPrice > 0 ? liquidationPrice : entryPrice, currentPrice];
   const minPrice = Math.min(...allPrices);
   const maxPrice = Math.max(...allPrices);
   const padding = (maxPrice - minPrice) * 0.1;
   const yDomain = [minPrice - padding, maxPrice + padding];
 
-  // Determine price trend
+  // Determine price trend - normalize side to uppercase
+  const normalizedSide = position.side.toUpperCase();
   const priceChange = currentPrice - entryPrice;
-  const isProfit = position.side === 'LONG' ? priceChange > 0 : priceChange < 0;
+  const isProfit = normalizedSide === 'LONG' ? priceChange > 0 : priceChange < 0;
   const lineColor = isProfit ? '#10b981' : '#ef4444';
   const gradientColor = isProfit ? 'emerald' : 'red';
 
@@ -262,21 +266,23 @@ export const PriceChart = ({
             }}
           />
 
-          {/* Liquidation price line */}
-          <ReferenceLine
-            y={liquidationPrice}
-            stroke="#EF4444"
-            strokeWidth={1.5}
-            strokeDasharray="4 4"
-            label={{
-              value: `Liq: ${formatPrice(liquidationPrice)}`,
-              position: 'insideBottomRight',
-              fill: '#EF4444',
-              fontSize: 10,
-              fontWeight: 600,
-              fontFamily: 'SF Mono, Monaco, Consolas, monospace'
-            }}
-          />
+          {/* Liquidation price line - only if valid */}
+          {liquidationPrice > 0 && (
+            <ReferenceLine
+              y={liquidationPrice}
+              stroke="#EF4444"
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              label={{
+                value: `Liq: ${formatPrice(liquidationPrice)}`,
+                position: 'insideBottomRight',
+                fill: '#EF4444',
+                fontSize: 10,
+                fontWeight: 600,
+                fontFamily: 'SF Mono, Monaco, Consolas, monospace'
+              }}
+            />
+          )}
 
           {/* Simulated price line */}
           {isSimulating && (
