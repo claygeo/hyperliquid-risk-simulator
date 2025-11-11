@@ -4,7 +4,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  Area,
   ComposedChart,
   Line
 } from 'recharts';
@@ -26,7 +25,6 @@ export const PriceChart = ({
   isLoadingCandles 
 }: PriceChartProps) => {
   
-  // Show loading state
   if (isLoadingCandles) {
     return (
       <div className="glass-card p-6 h-[300px] md:h-[400px] flex items-center justify-center">
@@ -39,7 +37,6 @@ export const PriceChart = ({
     );
   }
 
-  // Show empty state if no position
   if (!position) {
     return (
       <div className="glass-card p-6 h-[300px] md:h-[400px] flex items-center justify-center">
@@ -53,91 +50,78 @@ export const PriceChart = ({
 
   const isMobile = window.innerWidth < 768;
   
-  // Use simulation data if simulating, otherwise use candle data
   const isSimulating = simulationState.isSimulating;
   const currentPrice = isSimulating ? (simulationState.simulatedPrice ?? position.currentPrice) : position.currentPrice;
   const entryPrice = position.entryPrice;
   const liquidationPrice = position.liquidationPrice ?? 0;
 
-  // Prepare chart data
-  let chartData: Array<{ timestamp: number; price: number; displayTime: string }> = [];
+  // Prepare chart data with OHLC
+  let chartData: Array<{ 
+    timestamp: number; 
+    high: number;
+    low: number;
+    close: number;
+    displayTime: string;
+  }> = [];
 
   if (isSimulating && priceHistory.length > 0) {
-    // Use simulation price history
     chartData = priceHistory.map(point => {
       const ts = (point as any).timestamp ?? Date.now();
       const price = (point as any).price ?? 0;
       return {
         timestamp: ts,
-        price: price,
+        high: price,
+        low: price,
+        close: price,
         displayTime: formatTime(ts)
       };
     });
   } else if (candleData.length > 0) {
-    // Use actual candle data - be very defensive
-    console.log('Sample candle data:', candleData[0]); // Debug
-    
     chartData = candleData.map(candle => {
-      // Try to get timestamp from various possible fields
-      const ts = (candle as any).timestamp || (candle as any).time || (candle as any).t || Date.now();
-      const price = (candle as any).close || (candle as any).c || 0;
-      
+      const ts = (candle as any).time || Date.now();
       return {
         timestamp: ts,
-        price: price,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
         displayTime: formatTime(ts)
       };
-    }).filter(d => d.price > 0); // Filter out any invalid data
-    
-    console.log('Formatted chart data sample:', chartData[0]); // Debug
+    }).filter(d => d.close > 0);
   } else {
-    // Fallback: show current price as a single point
     chartData = [{
       timestamp: Date.now(),
-      price: position.currentPrice,
+      high: position.currentPrice,
+      low: position.currentPrice,
+      close: position.currentPrice,
       displayTime: 'Now'
     }];
   }
 
-  // Calculate Y-axis domain with padding
-  const prices = chartData.map(d => d.price);
-  const allPrices = [...prices, entryPrice, liquidationPrice > 0 ? liquidationPrice : entryPrice, currentPrice];
+  // Calculate Y-axis domain
+  const allPrices = chartData.flatMap(d => [d.high, d.low]);
+  allPrices.push(entryPrice, currentPrice);
+  if (liquidationPrice > 0) allPrices.push(liquidationPrice);
+  
   const minPrice = Math.min(...allPrices);
   const maxPrice = Math.max(...allPrices);
   const padding = (maxPrice - minPrice) * 0.1;
   const yDomain = [minPrice - padding, maxPrice + padding];
 
-  // Determine price trend - normalize side to uppercase
   const normalizedSide = position.side.toUpperCase();
   const priceChange = currentPrice - entryPrice;
   const isProfit = normalizedSide === 'LONG' ? priceChange > 0 : priceChange < 0;
-  const lineColor = isProfit ? '#10b981' : '#ef4444';
-  const gradientColor = isProfit ? 'emerald' : 'red';
 
   function formatTime(timestamp: number | string): string {
     try {
-      // Convert to number if string
       let ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
-      
-      // If timestamp seems too small, it's likely in seconds - convert to ms
-      if (ts < 10000000000) {
-        ts = ts * 1000;
-      }
+      if (ts < 10000000000) ts = ts * 1000;
       
       const date = new Date(ts);
-      
-      // Validate date
-      if (!date || isNaN(date.getTime())) {
-        return '--:--';
-      }
+      if (!date || isNaN(date.getTime())) return '--:--';
       
       const hours = date.getHours();
       const minutes = date.getMinutes();
-      
-      // Final validation
-      if (isNaN(hours) || isNaN(minutes)) {
-        return '--:--';
-      }
+      if (isNaN(hours) || isNaN(minutes)) return '--:--';
       
       return `${hours}:${minutes.toString().padStart(2, '0')}`;
     } catch (e) {
@@ -155,10 +139,24 @@ export const PriceChart = ({
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload[0]) {
       const data = payload[0].payload;
+      
       return (
         <div className="bg-gray-950/95 backdrop-blur-md border border-gray-800/60 rounded-md p-3 shadow-xl">
-          <div className="text-gray-400 text-xs mb-1 font-mono">{data.displayTime}</div>
-          <div className="text-gray-100 text-sm font-bold font-mono">{formatPrice(data.price)}</div>
+          <div className="text-gray-400 text-xs mb-1.5 font-mono">{data.displayTime}</div>
+          <div className="space-y-1 text-xs font-mono">
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">High:</span>
+              <span className="text-emerald-400">{formatPrice(data.high)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">Low:</span>
+              <span className="text-red-400">{formatPrice(data.low)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">Close:</span>
+              <span className="text-gray-100 font-bold">{formatPrice(data.close)}</span>
+            </div>
+          </div>
         </div>
       );
     }
@@ -167,7 +165,7 @@ export const PriceChart = ({
 
   return (
     <div className="glass-card p-3 md:p-4">
-      {/* Chart header - compact */}
+      {/* Chart header */}
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-gray-400 text-xs font-medium uppercase tracking-wide">
@@ -191,21 +189,6 @@ export const PriceChart = ({
       {/* Chart */}
       <ResponsiveContainer width="100%" height={isMobile ? 280 : 360}>
         <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id={`area-${gradientColor}`} x1="0" y1="0" x2="0" y2="1">
-              <stop 
-                offset="5%" 
-                stopColor={lineColor} 
-                stopOpacity={0.3}
-              />
-              <stop 
-                offset="95%" 
-                stopColor={lineColor} 
-                stopOpacity={0}
-              />
-            </linearGradient>
-          </defs>
-
           <XAxis
             dataKey="displayTime"
             stroke="#4B5563"
@@ -232,22 +215,34 @@ export const PriceChart = ({
 
           <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#374151', strokeWidth: 1 }} />
 
-          {/* Price area */}
-          <Area
-            type="monotone"
-            dataKey="price"
-            stroke="none"
-            fill={`url(#area-${gradientColor})`}
-          />
-
-          {/* Price line */}
+          {/* High line (wicks) */}
           <Line
             type="monotone"
-            dataKey="price"
-            stroke={lineColor}
+            dataKey="high"
+            stroke="#10b981"
+            strokeWidth={0.5}
+            dot={false}
+            opacity={0.3}
+          />
+
+          {/* Low line (wicks) */}
+          <Line
+            type="monotone"
+            dataKey="low"
+            stroke="#ef4444"
+            strokeWidth={0.5}
+            dot={false}
+            opacity={0.3}
+          />
+
+          {/* Close price line (main) */}
+          <Line
+            type="monotone"
+            dataKey="close"
+            stroke={isSimulating ? '#A855F7' : '#3B82F6'}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 4, fill: lineColor, strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: isSimulating ? '#A855F7' : '#3B82F6', strokeWidth: 0 }}
           />
 
           {/* Entry price line */}
@@ -266,7 +261,7 @@ export const PriceChart = ({
             }}
           />
 
-          {/* Liquidation price line - only if valid */}
+          {/* Liquidation price line */}
           {liquidationPrice > 0 && (
             <ReferenceLine
               y={liquidationPrice}
@@ -283,41 +278,31 @@ export const PriceChart = ({
               }}
             />
           )}
-
-          {/* Simulated price line */}
-          {isSimulating && (
-            <ReferenceLine
-              y={currentPrice}
-              stroke="#A855F7"
-              strokeWidth={1.5}
-              strokeDasharray="2 2"
-              label={{
-                value: `Sim: ${formatPrice(currentPrice)}`,
-                position: 'insideTopLeft',
-                fill: '#A855F7',
-                fontSize: 10,
-                fontWeight: 600,
-                fontFamily: 'SF Mono, Monaco, Consolas, monospace'
-              }}
-            />
-          )}
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Chart legend - compact */}
-      <div className="flex items-center justify-center gap-4 mt-3 text-xs">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-0.5 bg-blue-500"></div>
-          <span className="text-gray-500">Entry</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-0.5 bg-red-500"></div>
-          <span className="text-gray-500">Liquidation</span>
-        </div>
-        {isSimulating && (
+      {/* Legend + Note */}
+      <div className="mt-3">
+        <div className="flex items-center justify-center gap-4 text-xs mb-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 bg-purple-500"></div>
-            <span className="text-gray-500">Simulated</span>
+            <div className="w-3 h-0.5 bg-blue-500"></div>
+            <span className="text-gray-500">Entry</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-0.5 bg-red-500"></div>
+            <span className="text-gray-500">Liquidation</span>
+          </div>
+          {isSimulating && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-0.5 bg-purple-500"></div>
+              <span className="text-gray-500">Simulated</span>
+            </div>
+          )}
+        </div>
+        
+        {!isSimulating && (
+          <div className="text-center text-xs text-gray-600">
+            Chart shows close prices with high/low wicks
           </div>
         )}
       </div>

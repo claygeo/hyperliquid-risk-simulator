@@ -138,7 +138,7 @@ function App() {
         </div>
 
         {/* Mobile Content */}
-        <div className="relative pb-24" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+        <div className="relative pb-20">
           {selectedPosition ? (
             <>
               {/* Position Info Card */}
@@ -217,15 +217,26 @@ function App() {
           )}
         </div>
 
-        {/* Bottom Navigation */}
+        {/* Bottom Navigation - FIXED */}
         {selectedPosition && (
-          <div className="fixed bottom-0 left-0 right-0 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-            <div className="bg-black/95 backdrop-blur-xl border-t border-emerald-900/30">
+          <nav 
+            className="fixed inset-x-0 bottom-0 z-50"
+            style={{ 
+              transform: 'translate3d(0, 0, 0)',
+              WebkitTransform: 'translate3d(0, 0, 0)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
+          >
+            <div 
+              className="bg-black/95 backdrop-blur-xl border-t border-emerald-900/30 shadow-2xl"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
               <div className="grid grid-cols-2 h-16">
                 <button
                   onClick={() => setShowPositions(!showPositions)}
-                  className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                    showPositions ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'
+                  className={`flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 ${
+                    showPositions ? 'text-emerald-400' : 'text-gray-500'
                   }`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,8 +247,8 @@ function App() {
                 </button>
                 <button
                   onClick={() => setShowControls(!showControls)}
-                  className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                    showControls ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'
+                  className={`flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 ${
+                    showControls ? 'text-emerald-400' : 'text-gray-500'
                   }`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -248,7 +259,7 @@ function App() {
                 </button>
               </div>
             </div>
-          </div>
+          </nav>
         )}
 
         {/* Mobile Positions Sheet */}
