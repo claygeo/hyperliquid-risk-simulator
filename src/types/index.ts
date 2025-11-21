@@ -87,8 +87,10 @@ export interface PriceData {
 // Component Props
 export interface AddressInputProps {
   onFetch: (address: string) => void;
+  onClear: () => void;
   isLoading: boolean;
   error: string | null;
+  savedAddress: string | null;
 }
 
 export interface PositionListProps {
@@ -104,11 +106,13 @@ export interface PositionCardProps {
 }
 
 export interface PriceChartProps {
-  position: Position;
+  position: Position | null;
   simulationState: SimulationState;
   priceHistory: PriceData[];
   candleData: CandleData[];
   isLoadingCandles: boolean;
+  selectedTimeframe: '24H' | '1W' | '1M' | 'All';
+  onTimeframeChange: (timeframe: '24H' | '1W' | '1M' | 'All') => void;
 }
 
 export interface SimulationControlsProps {

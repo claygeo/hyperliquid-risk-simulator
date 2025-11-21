@@ -7,17 +7,7 @@ import {
   ComposedChart,
   Line
 } from 'recharts';
-import { Position, SimulationState, PriceData, CandleData } from '../types';
-
-interface PriceChartProps {
-  position: Position | null;
-  simulationState: SimulationState;
-  priceHistory: PriceData[];
-  candleData: CandleData[];
-  isLoadingCandles: boolean;
-  selectedTimeframe: '24H' | '1W' | '1M' | 'All';
-  onTimeframeChange: (timeframe: '24H' | '1W' | '1M' | 'All') => void;
-}
+import { Position, SimulationState, PriceData, CandleData, PriceChartProps } from '../types';
 
 export const PriceChart = ({ 
   position, 
