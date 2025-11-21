@@ -14,6 +14,14 @@ import {
 } from './services/calculations';
 import { fetchCandleData } from './services/hyperliquid';
 
+// Timeframe configuration
+const TIMEFRAME_CONFIG = {
+  '24H': { interval: '15m', hours: 24 },
+  '1W': { interval: '1h', hours: 168 },
+  '1M': { interval: '4h', hours: 720 },
+  'All': { interval: '1d', hours: 2160 }, // 90 days
+} as const;
+
 function App() {
   const { positions, isLoading, error, fetchPositions } = useHyperliquid();
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
@@ -27,9 +35,11 @@ function App() {
   const [priceHistory, setPriceHistory] = useState<PriceData[]>([]);
   const [candleData, setCandleData] = useState<CandleData[]>([]);
   const [isLoadingCandles, setIsLoadingCandles] = useState(false);
+  const [selectedTimeframe, setSelectedTimeframe] = useState<'24H' | '1W' | '1M' | 'All'>('24H');
   const [isMobile, setIsMobile] = useState(false);
   const [showPositions, setShowPositions] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [savedAddress, setSavedAddress] = useState<string | null>(null);
 
   // Check if mobile
   useEffect(() => {
@@ -41,6 +51,16 @@ function App() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Load saved address on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('hyperliquid_address');
+    if (saved) {
+      setSavedAddress(saved);
+      // Auto-fetch the saved address
+      fetchPositions(saved);
+    }
+  }, []);
+
   // Auto-select first position on mobile
   useEffect(() => {
     if (isMobile && positions.length > 0 && !selectedPosition) {
@@ -48,8 +68,19 @@ function App() {
     }
   }, [positions, isMobile]);
 
+  // Refetch candles when timeframe changes
+  useEffect(() => {
+    if (selectedPosition) {
+      loadCandleData(selectedPosition.coin, selectedTimeframe);
+    }
+  }, [selectedTimeframe]);
+
   // Handle fetching positions
   const handleFetchPositions = async (address: string) => {
+    // Save address to localStorage
+    localStorage.setItem('hyperliquid_address', address);
+    setSavedAddress(address);
+    
     await fetchPositions(address);
     setSelectedPosition(null);
     resetSimulation();
@@ -59,22 +90,29 @@ function App() {
     }
   };
 
+  // Handle clearing saved address
+  const handleClearAddress = () => {
+    localStorage.removeItem('hyperliquid_address');
+    setSavedAddress(null);
+  };
+
   // Handle position selection
   const handleSelectPosition = (position: Position) => {
     setSelectedPosition(position);
     resetSimulation();
-    loadCandleData(position.coin);
+    loadCandleData(position.coin, selectedTimeframe);
     if (isMobile) {
       setShowPositions(false);
       setShowControls(false);
     }
   };
 
-  // Load candle data for a coin
-  const loadCandleData = async (coin: string) => {
+  // Load candle data for a coin with selected timeframe
+  const loadCandleData = async (coin: string, timeframe: '24H' | '1W' | '1M' | 'All' = '24H') => {
     setIsLoadingCandles(true);
     try {
-      const candles = await fetchCandleData(coin, '15m', 24);
+      const config = TIMEFRAME_CONFIG[timeframe];
+      const candles = await fetchCandleData(coin, config.interval, config.hours);
       setCandleData(candles);
     } catch (error) {
       console.error('Failed to load candle data:', error);
@@ -132,8 +170,10 @@ function App() {
         <div className="sticky top-0 z-50 backdrop-blur-xl bg-black/80 border-b border-emerald-900/30">
           <AddressInput
             onFetch={handleFetchPositions}
+            onClear={handleClearAddress}
             isLoading={isLoading}
             error={error}
+            savedAddress={savedAddress}
           />
         </div>
 
@@ -165,7 +205,10 @@ function App() {
                         selectedPosition.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
                       }`}>
                         {selectedPosition.unrealizedPnl >= 0 ? '+' : ''}
-                        ${Math.abs(selectedPosition.unrealizedPnl).toFixed(2)}
+                        ${Math.abs(selectedPosition.unrealizedPnl).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
                       </div>
                     </div>
                   </div>
@@ -189,6 +232,8 @@ function App() {
                   priceHistory={priceHistory}
                   candleData={candleData}
                   isLoadingCandles={isLoadingCandles}
+                  selectedTimeframe={selectedTimeframe}
+                  onTimeframeChange={setSelectedTimeframe}
                 />
               </div>
 
@@ -316,8 +361,10 @@ function App() {
       <div className="bg-black/80 backdrop-blur-xl border-b border-emerald-900/30">
         <AddressInput
           onFetch={handleFetchPositions}
+          onClear={handleClearAddress}
           isLoading={isLoading}
           error={error}
+          savedAddress={savedAddress}
         />
       </div>
 
@@ -343,6 +390,8 @@ function App() {
                   priceHistory={priceHistory}
                   candleData={candleData}
                   isLoadingCandles={isLoadingCandles}
+                  selectedTimeframe={selectedTimeframe}
+                  onTimeframeChange={setSelectedTimeframe}
                 />
               </div>
               <div className="grid grid-cols-2 gap-6">

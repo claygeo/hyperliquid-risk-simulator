@@ -32,20 +32,6 @@ export const PositionCard = ({ position, isSelected, onClick }: PositionCardProp
   // Handle nullable liquidationPrice
   const liquidationPrice = position.liquidationPrice ?? 0;
 
-  // Calculate distance to liquidation
-  const distanceToLiq = liquidationPrice > 0 
-    ? Math.abs((liquidationPrice - position.currentPrice) / position.currentPrice) * 100 
-    : 100;
-
-  // Calculate progress toward liquidation
-  const priceRange = liquidationPrice - position.entryPrice;
-  const currentDistance = position.currentPrice - position.entryPrice;
-  const liquidationProgress = priceRange !== 0 ? (currentDistance / priceRange) * 100 : 0;
-
-  // Risk level
-  const isHighRisk = distanceToLiq < 5;
-  const isMediumRisk = distanceToLiq >= 5 && distanceToLiq < 10;
-
   return (
     <button
       onClick={onClick}
@@ -80,7 +66,7 @@ export const PositionCard = ({ position, isSelected, onClick }: PositionCardProp
           </div>
         </div>
 
-        {/* P&L Badge */}
+        {/* ROI Badge */}
         <div className={`text-right ${
           position.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
         }`}>
@@ -90,8 +76,8 @@ export const PositionCard = ({ position, isSelected, onClick }: PositionCardProp
         </div>
       </div>
 
-      {/* Price Grid - Compact */}
-      <div className="grid grid-cols-3 gap-3 mb-3 text-xs">
+      {/* Price Grid - Tighter 2-column */}
+      <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
         <div>
           <div className="text-gray-500 mb-0.5">Entry</div>
           <div className="font-mono font-semibold text-gray-300 text-sm">
@@ -106,20 +92,22 @@ export const PositionCard = ({ position, isSelected, onClick }: PositionCardProp
             {formatCurrency(position.currentPrice)}
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-gray-500 mb-0.5">P&L</div>
-          <div className={`font-mono font-semibold text-sm ${
-            position.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
-          }`}>
-            {position.unrealizedPnl >= 0 ? '+' : ''}{formatCurrency(position.unrealizedPnl)}
-          </div>
-        </div>
       </div>
 
-      {/* Liquidation Price - Simple */}
-      <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-800/50">
+      {/* Liquidation - Tighter */}
+      <div className="flex items-center justify-between text-xs pb-3 mb-3 border-b border-gray-800/50">
         <span className="text-gray-500">Liquidation</span>
         <span className="font-mono text-gray-300 font-semibold">{formatCurrency(liquidationPrice)}</span>
+      </div>
+
+      {/* P&L - Own row, centered, prominent */}
+      <div className="text-center">
+        <div className="text-gray-500 text-xs mb-1">P&L</div>
+        <div className={`font-mono font-bold text-lg ${
+          position.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
+        }`}>
+          {position.unrealizedPnl >= 0 ? '+' : ''}{formatCurrency(position.unrealizedPnl)}
+        </div>
       </div>
     </button>
   );

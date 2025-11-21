@@ -15,6 +15,8 @@ interface PriceChartProps {
   priceHistory: PriceData[];
   candleData: CandleData[];
   isLoadingCandles: boolean;
+  selectedTimeframe: '24H' | '1W' | '1M' | 'All';
+  onTimeframeChange: (timeframe: '24H' | '1W' | '1M' | 'All') => void;
 }
 
 export const PriceChart = ({ 
@@ -22,7 +24,9 @@ export const PriceChart = ({
   simulationState, 
   priceHistory, 
   candleData,
-  isLoadingCandles 
+  isLoadingCandles,
+  selectedTimeframe,
+  onTimeframeChange
 }: PriceChartProps) => {
   
   if (isLoadingCandles) {
@@ -163,13 +167,15 @@ export const PriceChart = ({
     return null;
   };
 
+  const timeframes: Array<'24H' | '1W' | '1M' | 'All'> = ['24H', '1W', '1M', 'All'];
+
   return (
     <div className="glass-card p-3 md:p-4">
-      {/* Chart header */}
+      {/* Chart header with timeframe selector */}
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-gray-400 text-xs font-medium uppercase tracking-wide">
-            {isSimulating ? 'Simulated Price' : '24H Price Chart'}
+            {isSimulating ? 'Simulated Price' : 'Price Chart'}
           </h3>
           <div className="text-gray-100 text-lg font-bold font-mono mt-0.5">
             {formatPrice(currentPrice)}
@@ -178,6 +184,28 @@ export const PriceChart = ({
             )}
           </div>
         </div>
+        
+        {/* Timeframe Selector */}
+        {!isSimulating && (
+          <div className="flex gap-1 bg-gray-950/50 rounded-lg p-1 border border-gray-800/50">
+            {timeframes.map((tf) => (
+              <button
+                key={tf}
+                onClick={() => onTimeframeChange(tf)}
+                disabled={isLoadingCandles}
+                className={`px-2.5 py-1 text-xs font-bold rounded transition-all ${
+                  selectedTimeframe === tf
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {/* Price change display (moved from below chart) */}
         <div className="text-right">
           <div className={`text-sm font-bold font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
             {isProfit ? '+' : ''}{((currentPrice - entryPrice) / entryPrice * 100).toFixed(2)}%
@@ -281,7 +309,7 @@ export const PriceChart = ({
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Legend + Note */}
+      {/* Legend */}
       <div className="mt-3">
         <div className="flex items-center justify-center gap-4 text-xs mb-2">
           <div className="flex items-center gap-1.5">
