@@ -94,9 +94,9 @@ export const PositionCard = ({ position, isSelected, onClick }: PositionCardProp
         </div>
       </div>
 
-      {/* Liquidation - Tighter */}
-      <div className="flex items-center justify-between text-xs pb-3 mb-3 border-b border-gray-800/50">
-        <span className="text-gray-500">Liquidation</span>
+      {/* Liquidation - Tight single line */}
+      <div className="flex items-center gap-1.5 text-xs pb-3 mb-3 border-b border-gray-800/50">
+        <span className="text-gray-500">Liquidation:</span>
         <span className="font-mono text-gray-300 font-semibold">{formatCurrency(liquidationPrice)}</span>
       </div>
 

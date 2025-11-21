@@ -185,15 +185,15 @@ export const PriceChart = ({
           </div>
         </div>
         
-        {/* Timeframe Selector */}
+        {/* Timeframe Selector - Smaller */}
         {!isSimulating && (
-          <div className="flex gap-1 bg-gray-950/50 rounded-lg p-1 border border-gray-800/50">
+          <div className="flex gap-0.5 bg-gray-950/50 rounded-md p-0.5 border border-gray-800/50">
             {timeframes.map((tf) => (
               <button
                 key={tf}
                 onClick={() => onTimeframeChange(tf)}
                 disabled={isLoadingCandles}
-                className={`px-2.5 py-1 text-xs font-bold rounded transition-all ${
+                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
                   selectedTimeframe === tf
                     ? 'bg-emerald-600 text-white'
                     : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50'
