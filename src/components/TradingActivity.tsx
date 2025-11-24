@@ -437,7 +437,7 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
                 amount = delta.liquidatedPnl;
                 isPositive = parseFloat(delta.liquidatedPnl) > 0;
                 description = `${delta.coin} Liquidation`;
-                details = `Mark Price: $${parseFloat(delta.markPx).toLocaleString()}`;
+                details = 'Position liquidated';
                 type = 'liquidation';
                 break;
               default:
