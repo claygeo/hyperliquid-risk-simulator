@@ -26,10 +26,10 @@ export const useWebSocket = ({
   const [error, setError] = useState<string | null>(null);
   
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastUpdateRef = useRef<number>(0);
   const pendingPricesRef = useRef<AllMidsResponse | null>(null);
-  const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const throttleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
   const mountedRef = useRef(true);
