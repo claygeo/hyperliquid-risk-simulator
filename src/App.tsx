@@ -4,6 +4,7 @@ import { PositionList } from './components/PositionList';
 import { PriceChart } from './components/PriceChart';
 import { SimulationControls } from './components/SimulationControls';
 import { PositionStats } from './components/PositionStats';
+import { TradingActivity } from './components/TradingActivity';
 import { useHyperliquid } from './hooks/useHyperliquid';
 import { Position, SimulationState, PriceData, CandleData } from './types';
 import {
@@ -39,6 +40,7 @@ function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [showPositions, setShowPositions] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
   const [savedAddress, setSavedAddress] = useState<string | null>(null);
 
   // Check if mobile
@@ -104,6 +106,7 @@ function App() {
     if (isMobile) {
       setShowPositions(false);
       setShowControls(false);
+      setShowActivity(false);
     }
   };
 
@@ -201,31 +204,29 @@ function App() {
                           {selectedPosition.leverage}X {selectedPosition.side.toUpperCase()}
                         </span>
                       </div>
-                      <div className={`text-sm font-bold mono ${
-                        selectedPosition.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
-                      }`}>
-                        {selectedPosition.unrealizedPnl >= 0 ? '+' : ''}
-                        ${Math.abs(selectedPosition.unrealizedPnl).toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
+                      <div className="text-gray-400 text-sm mono">
+                        ${selectedPosition.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setShowPositions(true)}
-                    className="text-gray-500 hover:text-emerald-400 p-2 transition-colors"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                    </svg>
-                  </button>
+                  <div className="text-right">
+                    <div className={`text-lg font-bold mono ${
+                      selectedPosition.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}>
+                      {selectedPosition.unrealizedPnl >= 0 ? '+' : ''}
+                      ${selectedPosition.unrealizedPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className={`text-xs ${
+                      selectedPosition.unrealizedPnl >= 0 ? 'text-emerald-500' : 'text-red-500'
+                    }`}>
+                      {((selectedPosition.unrealizedPnl / selectedPosition.margin) * 100).toFixed(2)}%
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Chart */}
-              <div className="px-4 py-5">
+              <div className="px-4 pt-4">
                 <PriceChart
                   position={selectedPosition}
                   simulationState={simulationState}
@@ -238,11 +239,16 @@ function App() {
               </div>
 
               {/* Stats Grid */}
-              <div className="px-4 pb-5">
+              <div className="px-4 pb-4">
                 <PositionStats
                   position={selectedPosition}
                   simulationState={simulationState}
                 />
+              </div>
+
+              {/* Trading Activity */}
+              <div className="px-4 pb-5">
+                <TradingActivity address={savedAddress} />
               </div>
             </>
           ) : (
@@ -277,7 +283,7 @@ function App() {
               className="bg-black/95 backdrop-blur-xl border-t border-emerald-900/30 shadow-2xl"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
-              <div className="grid grid-cols-2 h-16">
+              <div className="grid grid-cols-3 h-16">
                 <button
                   onClick={() => setShowPositions(!showPositions)}
                   className={`flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 ${
@@ -301,6 +307,18 @@ function App() {
                       d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                   <span className="text-xs font-semibold">Simulate</span>
+                </button>
+                <button
+                  onClick={() => setShowActivity(!showActivity)}
+                  className={`flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 ${
+                    showActivity ? 'text-emerald-400' : 'text-gray-500'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                  <span className="text-xs font-semibold">Activity</span>
                 </button>
               </div>
             </div>
@@ -350,6 +368,22 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* Mobile Activity Sheet */}
+        {showActivity && (
+          <div className="fixed inset-0 z-50 flex items-end">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+                 onClick={() => setShowActivity(false)} />
+            <div className="relative w-full glass-sheet rounded-t-3xl animate-slide-up"
+                 style={{ maxHeight: '80vh' }}>
+              <div className="drag-handle" onClick={() => setShowActivity(false)} />
+              <div className="px-4 pb-8 overflow-y-auto hide-scrollbar"
+                   style={{ maxHeight: 'calc(80vh - 20px)' }}>
+                <TradingActivity address={savedAddress} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -377,6 +411,13 @@ function App() {
             selectedPosition={selectedPosition}
             onSelectPosition={handleSelectPosition}
           />
+          
+          {/* Trading Activity in Sidebar - Desktop */}
+          {savedAddress && (
+            <div className="p-4 border-t border-emerald-900/20">
+              <TradingActivity address={savedAddress} />
+            </div>
+          )}
         </div>
 
         {/* Main Area */}
