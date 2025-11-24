@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AddressInput } from './components/AddressInput';
 import { PositionList } from './components/PositionList';
 import { PriceChart } from './components/PriceChart';
 import { SimulationControls } from './components/SimulationControls';
 import { PositionStats } from './components/PositionStats';
 import { TradingActivity } from './components/TradingActivity';
+import { PortfolioSummary } from './components/PortfolioSummary';
 import { useHyperliquid } from './hooks/useHyperliquid';
+import { useWebSocket } from './hooks/useWebSocket';
 import { Position, SimulationState, PriceData, CandleData } from './types';
 import {
   calculateNewPrice,
@@ -24,7 +26,7 @@ const TIMEFRAME_CONFIG = {
 } as const;
 
 function App() {
-  const { positions, isLoading, error, fetchPositions } = useHyperliquid();
+  const { positions, isLoading, error, fetchPositions, accountData } = useHyperliquid();
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [simulationState, setSimulationState] = useState<SimulationState>({
     isSimulating: false,
@@ -42,6 +44,56 @@ function App() {
   const [showControls, setShowControls] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [savedAddress, setSavedAddress] = useState<string | null>(null);
+  
+  // Live positions with WebSocket price updates
+  const [livePositions, setLivePositions] = useState<Position[]>([]);
+  
+  // Pull-to-refresh state
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const pullStartY = useRef(0);
+  const contentRef = useRef<HTMLDivElement>(null);
+  
+  // WebSocket for real-time prices
+  const { prices: livePrices, isConnected: wsConnected } = useWebSocket({
+    enabled: !!savedAddress && positions.length > 0,
+    throttleMs: 2000, // Update UI every 2 seconds max
+  });
+
+  // Update positions with live prices
+  useEffect(() => {
+    if (Object.keys(livePrices).length === 0) {
+      setLivePositions(positions);
+      return;
+    }
+    
+    const updated = positions.map(pos => {
+      const livePrice = livePrices[pos.coin];
+      if (!livePrice) return pos;
+      
+      const currentPrice = parseFloat(livePrice);
+      const priceDiff = currentPrice - pos.entryPrice;
+      const pnlMultiplier = pos.side === 'long' ? 1 : -1;
+      const unrealizedPnl = priceDiff * pos.size * pnlMultiplier;
+      
+      return {
+        ...pos,
+        currentPrice,
+        unrealizedPnl,
+      };
+    });
+    
+    setLivePositions(updated);
+    
+    // Update selected position if it exists
+    if (selectedPosition) {
+      const updatedSelected = updated.find(p => p.coin === selectedPosition.coin);
+      if (updatedSelected) {
+        setSelectedPosition(updatedSelected);
+      }
+    }
+  }, [livePrices, positions]);
 
   // Check if mobile
   useEffect(() => {
@@ -58,7 +110,6 @@ function App() {
     const saved = localStorage.getItem('hyperliquid_address');
     if (saved) {
       setSavedAddress(saved);
-      // Auto-fetch the saved address
       fetchPositions(saved);
     }
   }, []);
@@ -77,9 +128,47 @@ function App() {
     }
   }, [selectedTimeframe]);
 
+  // Pull-to-refresh touch handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (contentRef.current && contentRef.current.scrollTop === 0) {
+      pullStartY.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling || isRefreshing) return;
+    
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - pullStartY.current;
+    
+    if (diff > 0 && contentRef.current?.scrollTop === 0) {
+      // Apply resistance - the further you pull, the harder it gets
+      const resistance = Math.min(diff * 0.4, 80);
+      setPullDistance(resistance);
+    }
+  }, [isPulling, isRefreshing]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (pullDistance > 60 && savedAddress && !isRefreshing) {
+      // Trigger refresh
+      setIsRefreshing(true);
+      setPullDistance(40); // Keep spinner visible
+      
+      try {
+        await fetchPositions(savedAddress);
+      } finally {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }
+    } else {
+      setPullDistance(0);
+    }
+    setIsPulling(false);
+  }, [pullDistance, savedAddress, isRefreshing, fetchPositions]);
+
   // Handle fetching positions
   const handleFetchPositions = async (address: string) => {
-    // Save address to localStorage
     localStorage.setItem('hyperliquid_address', address);
     setSavedAddress(address);
     
@@ -100,9 +189,11 @@ function App() {
 
   // Handle position selection
   const handleSelectPosition = (position: Position) => {
-    setSelectedPosition(position);
+    // Find the live version of this position
+    const liveVersion = livePositions.find(p => p.coin === position.coin) || position;
+    setSelectedPosition(liveVersion);
     resetSimulation();
-    loadCandleData(position.coin, selectedTimeframe);
+    loadCandleData(liveVersion.coin, selectedTimeframe);
     if (isMobile) {
       setShowPositions(false);
       setShowControls(false);
@@ -171,17 +262,56 @@ function App() {
       <div className="min-h-screen terminal-bg">
         {/* Header */}
         <div className="sticky top-0 z-50 backdrop-blur-xl bg-black/80 border-b border-emerald-900/30">
-          <AddressInput
-            onFetch={handleFetchPositions}
-            onClear={handleClearAddress}
-            isLoading={isLoading}
-            error={error}
-            savedAddress={savedAddress}
-          />
+          <div className="flex items-center gap-2 px-4 py-2">
+            <div className="flex-1">
+              <AddressInput
+                onFetch={handleFetchPositions}
+                onClear={handleClearAddress}
+                isLoading={isLoading}
+                error={error}
+                savedAddress={savedAddress}
+              />
+            </div>
+            {/* Portfolio Summary Icon */}
+            <PortfolioSummary
+              positions={livePositions}
+              accountValue={accountData?.marginSummary?.accountValue || null}
+              withdrawable={accountData?.withdrawable || null}
+              isConnected={wsConnected}
+            />
+          </div>
         </div>
 
-        {/* Mobile Content */}
-        <div className="relative pb-20">
+        {/* Pull-to-refresh indicator */}
+        <div 
+          className="flex justify-center overflow-hidden transition-all duration-200"
+          style={{ height: pullDistance }}
+        >
+          <div className={`flex items-center justify-center ${isRefreshing ? 'animate-spin' : ''}`}>
+            <svg 
+              className="w-6 h-6 text-emerald-500" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+              style={{ 
+                transform: `rotate(${pullDistance * 3}deg)`,
+                opacity: pullDistance / 60 
+              }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Mobile Content with pull-to-refresh */}
+        <div 
+          ref={contentRef}
+          className="relative pb-24"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           {selectedPosition ? (
             <>
               {/* Position Info Card */}
@@ -204,8 +334,16 @@ function App() {
                           {selectedPosition.leverage}X {selectedPosition.side.toUpperCase()}
                         </span>
                       </div>
-                      <div className="text-gray-400 text-sm mono">
-                        ${selectedPosition.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400 text-sm mono">
+                          ${selectedPosition.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        {wsConnected && (
+                          <span className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                            <span className="text-xs text-emerald-500">Live</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -268,7 +406,7 @@ function App() {
           )}
         </div>
 
-        {/* Bottom Navigation - FIXED */}
+        {/* Bottom Navigation */}
         {selectedPosition && (
           <nav 
             className="fixed inset-x-0 bottom-0 z-50"
@@ -290,10 +428,6 @@ function App() {
                     showPositions ? 'text-emerald-400' : 'text-gray-500'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
                   <span className="text-xs font-semibold">Positions</span>
                 </button>
                 <button
@@ -302,10 +436,6 @@ function App() {
                     showControls ? 'text-emerald-400' : 'text-gray-500'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
                   <span className="text-xs font-semibold">Simulate</span>
                 </button>
                 <button
@@ -314,10 +444,6 @@ function App() {
                     showActivity ? 'text-emerald-400' : 'text-gray-500'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                  </svg>
                   <span className="text-xs font-semibold">Activity</span>
                 </button>
               </div>
@@ -340,7 +466,7 @@ function App() {
               <div className="overflow-y-auto px-4 pb-8 hide-scrollbar" 
                    style={{ maxHeight: 'calc(75vh - 100px)' }}>
                 <PositionList
-                  positions={positions}
+                  positions={livePositions}
                   selectedPosition={selectedPosition}
                   onSelectPosition={handleSelectPosition}
                 />
@@ -393,13 +519,24 @@ function App() {
     <div className="h-screen terminal-bg flex flex-col overflow-hidden">
       {/* Desktop Header */}
       <div className="bg-black/80 backdrop-blur-xl border-b border-emerald-900/30">
-        <AddressInput
-          onFetch={handleFetchPositions}
-          onClear={handleClearAddress}
-          isLoading={isLoading}
-          error={error}
-          savedAddress={savedAddress}
-        />
+        <div className="flex items-center gap-4 px-4 py-2">
+          <div className="flex-1">
+            <AddressInput
+              onFetch={handleFetchPositions}
+              onClear={handleClearAddress}
+              isLoading={isLoading}
+              error={error}
+              savedAddress={savedAddress}
+            />
+          </div>
+          {/* Portfolio Summary Icon */}
+          <PortfolioSummary
+            positions={livePositions}
+            accountValue={accountData?.marginSummary?.accountValue || null}
+            withdrawable={accountData?.withdrawable || null}
+            isConnected={wsConnected}
+          />
+        </div>
       </div>
 
       {/* Desktop Content */}
@@ -407,7 +544,7 @@ function App() {
         {/* Sidebar */}
         <div className="w-96 bg-gray-950/50 backdrop-blur-sm border-r border-emerald-900/20 overflow-y-auto">
           <PositionList
-            positions={positions}
+            positions={livePositions}
             selectedPosition={selectedPosition}
             onSelectPosition={handleSelectPosition}
           />
@@ -424,6 +561,14 @@ function App() {
         <div className="flex-1 overflow-hidden">
           {selectedPosition ? (
             <div className="h-full flex flex-col p-6 gap-6">
+              {/* Live indicator */}
+              {wsConnected && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                  <span className="text-emerald-400">Live prices</span>
+                </div>
+              )}
+              
               <div className="flex-1 min-h-0">
                 <PriceChart
                   position={selectedPosition}

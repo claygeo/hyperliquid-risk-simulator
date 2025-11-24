@@ -84,11 +84,10 @@ export const SimulationControls = ({
             <button
               key={scenario.label}
               onClick={() => onSimulate(scenario.value)}
-              disabled={isSimulating}
               className={`relative overflow-hidden group py-3.5 px-3 rounded-xl 
                         transition-all duration-200 border backdrop-blur-sm
                         ${getButtonClass('crash', scenario.severity)}
-                        disabled:opacity-50 disabled:cursor-not-allowed`}
+                        active:scale-95`}
             >
               <div className="flex flex-col items-center gap-1.5">
                 <CrashIcon />
@@ -112,11 +111,10 @@ export const SimulationControls = ({
             <button
               key={scenario.label}
               onClick={() => onSimulate(scenario.value)}
-              disabled={isSimulating}
               className={`relative overflow-hidden group py-3.5 px-3 rounded-xl 
                         transition-all duration-200 border backdrop-blur-sm
                         ${getButtonClass('pump', scenario.severity)}
-                        disabled:opacity-50 disabled:cursor-not-allowed`}
+                        active:scale-95`}
             >
               <div className="flex flex-col items-center gap-1.5">
                 <PumpIcon />
@@ -138,10 +136,9 @@ export const SimulationControls = ({
             <button
               key={value}
               onClick={() => onSimulate(value)}
-              disabled={isSimulating}
               className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold mono border 
                         transition-all duration-200 backdrop-blur-sm ${getQuickButtonClass(value)}
-                        disabled:opacity-50 disabled:cursor-not-allowed`}
+                        active:scale-95`}
             >
               {value > 0 ? '+' : ''}{value}%
             </button>
@@ -158,7 +155,6 @@ export const SimulationControls = ({
             onChange={(e) => setCustomPercent(e.target.value)}
             placeholder="Custom % change"
             className="input-field w-full pr-10 text-sm"
-            disabled={isSimulating}
           />
           <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 font-semibold">
             %
@@ -166,8 +162,8 @@ export const SimulationControls = ({
         </div>
         <button
           onClick={handleCustomSimulate}
-          disabled={isSimulating || !customPercent}
-          className="btn-primary px-6 font-semibold"
+          disabled={!customPercent}
+          className="btn-primary px-6 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Simulate
         </button>
