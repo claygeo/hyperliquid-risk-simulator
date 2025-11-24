@@ -44,59 +44,17 @@ const formatTimeAgo = (timestamp: number): string => {
   });
 };
 
-// Tab configuration
-const TABS: { id: TradingActivityTab; label: string; icon: JSX.Element }[] = [
-  {
-    id: 'orders',
-    label: 'Orders',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-    ),
-  },
-  {
-    id: 'fills',
-    label: 'Fills',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-          d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'trades',
-    label: 'Trades',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-      </svg>
-    ),
-  },
-  {
-    id: 'funds',
-    label: 'Funds',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'twap',
-    label: 'TWAP',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
+// Tab configuration - clean text only
+const TABS: { id: TradingActivityTab; label: string }[] = [
+  { id: 'orders', label: 'Orders' },
+  { id: 'fills', label: 'Fills' },
+  { id: 'trades', label: 'Trades' },
+  { id: 'funds', label: 'Funds' },
+  { id: 'twap', label: 'TWAP' },
 ];
+
+// Items per page for load more
+const ITEMS_PER_PAGE = 20;
 
 export const TradingActivity = ({ address }: TradingActivityProps) => {
   const [activeTab, setActiveTab] = useState<TradingActivityTab>('orders');
@@ -108,6 +66,15 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
   const [fills, setFills] = useState<UserFill[]>([]);
   const [ledgerUpdates, setLedgerUpdates] = useState<LedgerUpdate[]>([]);
   const [twapFills, setTwapFills] = useState<TwapSliceFill[]>([]);
+  
+  // Pagination states - track how many items to show per tab
+  const [visibleCounts, setVisibleCounts] = useState<Record<TradingActivityTab, number>>({
+    orders: ITEMS_PER_PAGE,
+    fills: ITEMS_PER_PAGE,
+    trades: ITEMS_PER_PAGE,
+    funds: ITEMS_PER_PAGE,
+    twap: ITEMS_PER_PAGE,
+  });
   
   // Track which tabs have been loaded
   const [loadedTabs, setLoadedTabs] = useState<Set<TradingActivityTab>>(new Set());
@@ -130,9 +97,16 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
     }
   }, [activeTab, address]);
 
-  // Reset loaded tabs when address changes
+  // Reset loaded tabs and pagination when address changes
   useEffect(() => {
     setLoadedTabs(new Set());
+    setVisibleCounts({
+      orders: ITEMS_PER_PAGE,
+      fills: ITEMS_PER_PAGE,
+      trades: ITEMS_PER_PAGE,
+      funds: ITEMS_PER_PAGE,
+      twap: ITEMS_PER_PAGE,
+    });
   }, [address]);
 
   const loadTabData = async (tab: TradingActivityTab) => {
@@ -177,10 +151,34 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
     }
   };
 
+  // Load more handler
+  const handleLoadMore = (tab: TradingActivityTab) => {
+    setVisibleCounts(prev => ({
+      ...prev,
+      [tab]: prev[tab] + ITEMS_PER_PAGE,
+    }));
+  };
+
   // Filter fills to get only closed trades
   const closedTrades = fills.filter(fill => 
     fill.dir.includes('Close') && parseFloat(fill.closedPnl) !== 0
   );
+
+  // Render Load More button
+  const renderLoadMore = (tab: TradingActivityTab, totalCount: number) => {
+    const visibleCount = visibleCounts[tab];
+    if (visibleCount >= totalCount) return null;
+    
+    return (
+      <button
+        onClick={() => handleLoadMore(tab)}
+        className="w-full mt-3 py-2.5 bg-gray-900/50 hover:bg-gray-800/50 border border-gray-700/50 
+                   rounded-lg text-sm text-gray-400 hover:text-white transition-colors"
+      >
+        Load More ({visibleCount} of {totalCount})
+      </button>
+    );
+  };
 
   // Render empty state
   const renderEmptyState = (message: string, subMessage: string) => (
@@ -203,6 +201,27 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
     </div>
   );
 
+  // Parse fill direction to readable format
+  const formatFillDirection = (fill: UserFill): { action: string; type: string } => {
+    const dir = fill.dir;
+    
+    if (dir === 'Open Long' || dir === 'Buy') {
+      return { action: 'Opened', type: 'Long' };
+    } else if (dir === 'Close Long') {
+      return { action: 'Closed', type: 'Long' };
+    } else if (dir === 'Open Short' || dir === 'Sell') {
+      return { action: 'Opened', type: 'Short' };
+    } else if (dir === 'Close Short') {
+      return { action: 'Closed', type: 'Short' };
+    }
+    
+    // Fallback
+    return { 
+      action: fill.side === 'B' ? 'Bought' : 'Sold', 
+      type: '' 
+    };
+  };
+
   // Render Open Orders
   const renderOpenOrders = () => {
     if (isLoading && !loadedTabs.has('orders')) return renderLoading();
@@ -210,38 +229,44 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
       return renderEmptyState('No open orders', 'Your pending orders will appear here');
     }
     
+    const visibleOrders = openOrders.slice(0, visibleCounts.orders);
+    
     return (
-      <div className="space-y-2">
-        {openOrders.map((order) => (
-          <div 
-            key={order.oid}
-            className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-white font-semibold">{order.coin}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                  order.side === 'B' 
-                    ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' 
-                    : 'bg-red-950/50 text-red-400 border border-red-800/50'
-                }`}>
-                  {order.side === 'B' ? 'BUY' : 'SELL'}
-                </span>
-                <span className="text-xs text-gray-500">{order.orderType || 'LIMIT'}</span>
+      <>
+        <div className="space-y-2">
+          {visibleOrders.map((order) => {
+            const side = order.side === 'B' ? 'Buy' : 'Sell';
+            const sideColor = order.side === 'B' ? 'text-emerald-400' : 'text-red-400';
+            
+            return (
+              <div 
+                key={order.oid}
+                className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">{order.coin}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      order.side === 'B' 
+                        ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' 
+                        : 'bg-red-950/50 text-red-400 border border-red-800/50'
+                    }`}>
+                      {side.toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500">{formatTimeAgo(order.timestamp)}</span>
+                </div>
+                <div className="text-sm text-gray-300">
+                  <span className={sideColor}>{side}</span>
+                  <span className="text-gray-400"> {formatNumber(order.sz, 4)} {order.coin} @ </span>
+                  <span className="text-white">${formatNumber(order.limitPx)}</span>
+                </div>
               </div>
-              <span className="text-xs text-gray-500">{formatTimeAgo(order.timestamp)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">
-                ${formatNumber(order.limitPx)} × {formatNumber(order.sz, 4)}
-              </span>
-              <span className="text-gray-500 mono text-xs">
-                ${formatNumber(parseFloat(order.limitPx) * parseFloat(order.sz))}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+        {renderLoadMore('orders', openOrders.length)}
+      </>
     );
   };
 
@@ -252,48 +277,59 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
       return renderEmptyState('No recent fills', 'Your executed orders will appear here');
     }
     
-    // Show last 50 fills
-    const recentFills = fills.slice(0, 50);
+    const visibleFills = fills.slice(0, visibleCounts.fills);
     
     return (
-      <div className="space-y-2">
-        {recentFills.map((fill, index) => (
-          <div 
-            key={`${fill.tid}-${index}`}
-            className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-white font-semibold">{fill.coin}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                  fill.side === 'B' 
-                    ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' 
-                    : 'bg-red-950/50 text-red-400 border border-red-800/50'
-                }`}>
-                  {fill.side === 'B' ? 'BUY' : 'SELL'}
-                </span>
-                <span className="text-xs text-gray-500">{fill.dir}</span>
+      <>
+        <div className="space-y-2">
+          {visibleFills.map((fill, index) => {
+            const { action, type } = formatFillDirection(fill);
+            const hasType = type !== '';
+            
+            return (
+              <div 
+                key={`${fill.tid}-${index}`}
+                className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">{fill.coin}</span>
+                    {hasType && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                        type === 'Long'
+                          ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' 
+                          : 'bg-red-950/50 text-red-400 border border-red-800/50'
+                      }`}>
+                        {type.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-500">{formatTimeAgo(fill.time)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-300">
+                    <span className="text-gray-400">{action} </span>
+                    <span className="text-white">{formatNumber(fill.sz, 4)} {fill.coin}</span>
+                    <span className="text-gray-400"> @ </span>
+                    <span className="text-white">${formatNumber(fill.px)}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 mono">
+                    Fee: ${formatNumber(fill.fee)}
+                  </span>
+                </div>
+                {parseFloat(fill.closedPnl) !== 0 && (
+                  <div className={`mt-2 text-sm font-medium ${
+                    parseFloat(fill.closedPnl) > 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    P&L: {parseFloat(fill.closedPnl) > 0 ? '+' : ''}${formatNumber(fill.closedPnl)}
+                  </div>
+                )}
               </div>
-              <span className="text-xs text-gray-500">{formatTimeAgo(fill.time)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">
-                ${formatNumber(fill.px)} × {formatNumber(fill.sz, 4)}
-              </span>
-              <span className="text-gray-500 mono text-xs">
-                Fee: ${formatNumber(fill.fee)}
-              </span>
-            </div>
-            {parseFloat(fill.closedPnl) !== 0 && (
-              <div className={`mt-2 text-sm font-medium ${
-                parseFloat(fill.closedPnl) > 0 ? 'text-emerald-400' : 'text-red-400'
-              }`}>
-                P&L: {parseFloat(fill.closedPnl) > 0 ? '+' : ''}${formatNumber(fill.closedPnl)}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+        {renderLoadMore('fills', fills.length)}
+      </>
     );
   };
 
@@ -304,42 +340,51 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
       return renderEmptyState('No completed trades', 'Your closed positions will appear here');
     }
     
+    const visibleTrades = closedTrades.slice(0, visibleCounts.trades);
+    
     return (
-      <div className="space-y-2">
-        {closedTrades.slice(0, 50).map((trade, index) => {
-          const pnl = parseFloat(trade.closedPnl);
-          const isProfit = pnl > 0;
-          
-          return (
-            <div 
-              key={`${trade.tid}-${index}`}
-              className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-semibold">{trade.coin}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                    trade.dir.includes('Long')
-                      ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' 
-                      : 'bg-red-950/50 text-red-400 border border-red-800/50'
-                  }`}>
-                    {trade.dir}
+      <>
+        <div className="space-y-2">
+          {visibleTrades.map((trade, index) => {
+            const pnl = parseFloat(trade.closedPnl);
+            const isProfit = pnl > 0;
+            const isLong = trade.dir.includes('Long');
+            
+            return (
+              <div 
+                key={`${trade.tid}-${index}`}
+                className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">{trade.coin}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      isLong
+                        ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' 
+                        : 'bg-red-950/50 text-red-400 border border-red-800/50'
+                    }`}>
+                      {isLong ? 'LONG' : 'SHORT'}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500">{formatTimeAgo(trade.time)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-300">
+                    <span className="text-gray-400">Closed </span>
+                    <span className="text-white">{formatNumber(trade.sz, 4)} {trade.coin}</span>
+                    <span className="text-gray-400"> @ </span>
+                    <span className="text-white">${formatNumber(trade.px)}</span>
+                  </div>
+                  <span className={`font-bold mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isProfit ? '+' : ''}${formatNumber(pnl)}
                   </span>
                 </div>
-                <span className="text-xs text-gray-500">{formatTimeAgo(trade.time)}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm">
-                  Exit @ ${formatNumber(trade.px)}
-                </span>
-                <span className={`font-bold mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {isProfit ? '+' : ''}${formatNumber(pnl)}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+        {renderLoadMore('trades', closedTrades.length)}
+      </>
     );
   };
 
@@ -350,92 +395,97 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
       return renderEmptyState('No fund activity', 'Deposits and withdrawals will appear here');
     }
     
+    const visibleUpdates = ledgerUpdates.slice(0, visibleCounts.funds);
+    
     return (
-      <div className="space-y-2">
-        {ledgerUpdates.slice(0, 50).map((update, index) => {
-          const { delta } = update;
-          let type = delta.type;
-          let amount = '0';
-          let isPositive = false;
-          let description = '';
-          
-          switch (delta.type) {
-            case 'deposit':
-              amount = delta.usdc;
-              isPositive = true;
-              description = 'Deposit';
-              break;
-            case 'withdraw':
-              amount = delta.usdc;
-              isPositive = false;
-              description = 'Withdrawal';
-              break;
-            case 'accountClassTransfer':
-              amount = delta.usdc;
-              isPositive = !delta.toPerp; // toPerp = moving to perp (out of spot)
-              description = delta.toPerp ? 'Transfer to Perp' : 'Transfer to Spot';
-              break;
-            case 'spotTransfer':
-              amount = delta.usdcValue || delta.amount;
-              isPositive = delta.destination !== delta.user;
-              description = `${delta.token} Transfer`;
-              break;
-            case 'liquidation':
-              amount = delta.liquidatedPnl;
-              isPositive = parseFloat(delta.liquidatedPnl) > 0;
-              description = `${delta.coin} Liquidation`;
-              type = 'liquidation';
-              break;
-            default:
-              description = type;
-          }
-          
-          const numAmount = Math.abs(parseFloat(amount));
-          
-          return (
-            <div 
-              key={`${update.hash}-${index}`}
-              className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    type === 'deposit' ? 'bg-emerald-950/50 text-emerald-400' :
-                    type === 'withdraw' ? 'bg-red-950/50 text-red-400' :
-                    type === 'liquidation' ? 'bg-orange-950/50 text-orange-400' :
-                    'bg-blue-950/50 text-blue-400'
-                  }`}>
-                    {type === 'deposit' ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                      </svg>
-                    ) : type === 'withdraw' ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                      </svg>
-                    ) : type === 'liquidation' ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                      </svg>
-                    )}
-                  </span>
-                  <div>
-                    <span className="text-white font-medium text-sm">{description}</span>
-                    <p className="text-xs text-gray-500">{formatTimeAgo(update.time)}</p>
+      <>
+        <div className="space-y-2">
+          {visibleUpdates.map((update, index) => {
+            const { delta } = update;
+            let type = delta.type;
+            let amount = '0';
+            let isPositive = false;
+            let description = '';
+            
+            switch (delta.type) {
+              case 'deposit':
+                amount = delta.usdc;
+                isPositive = true;
+                description = 'Deposit';
+                break;
+              case 'withdraw':
+                amount = delta.usdc;
+                isPositive = false;
+                description = 'Withdrawal';
+                break;
+              case 'accountClassTransfer':
+                amount = delta.usdc;
+                isPositive = !delta.toPerp;
+                description = delta.toPerp ? 'Transfer to Perp' : 'Transfer to Spot';
+                break;
+              case 'spotTransfer':
+                amount = delta.usdcValue || delta.amount;
+                isPositive = delta.destination !== delta.user;
+                description = `${delta.token} Transfer`;
+                break;
+              case 'liquidation':
+                amount = delta.liquidatedPnl;
+                isPositive = parseFloat(delta.liquidatedPnl) > 0;
+                description = `${delta.coin} Liquidation`;
+                type = 'liquidation';
+                break;
+              default:
+                description = type;
+            }
+            
+            const numAmount = Math.abs(parseFloat(amount));
+            
+            return (
+              <div 
+                key={`${update.hash}-${index}`}
+                className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                      type === 'deposit' ? 'bg-emerald-950/50 text-emerald-400' :
+                      type === 'withdraw' ? 'bg-red-950/50 text-red-400' :
+                      type === 'liquidation' ? 'bg-orange-950/50 text-orange-400' :
+                      'bg-blue-950/50 text-blue-400'
+                    }`}>
+                      {type === 'deposit' ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                      ) : type === 'withdraw' ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                        </svg>
+                      ) : type === 'liquidation' ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      )}
+                    </span>
+                    <div>
+                      <span className="text-white font-medium text-sm">{description}</span>
+                      <p className="text-xs text-gray-500">{formatTimeAgo(update.time)}</p>
+                    </div>
                   </div>
+                  <span className={`font-bold mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isPositive ? '+' : '-'}${formatNumber(numAmount)}
+                  </span>
                 </div>
-                <span className={`font-bold mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {isPositive ? '+' : '-'}${formatNumber(numAmount)}
-                </span>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+        {renderLoadMore('funds', ledgerUpdates.length)}
+      </>
     );
   };
 
@@ -446,44 +496,53 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
       return renderEmptyState('No TWAP orders', 'Your TWAP executions will appear here');
     }
     
+    const visibleTwap = twapFills.slice(0, visibleCounts.twap);
+    
     return (
-      <div className="space-y-2">
-        {twapFills.slice(0, 50).map((twap, index) => {
-          const { fill } = twap;
-          
-          return (
-            <div 
-              key={`${twap.twapId}-${index}`}
-              className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-semibold">{fill.coin}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                    fill.side === 'B' 
-                      ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' 
-                      : 'bg-red-950/50 text-red-400 border border-red-800/50'
-                  }`}>
-                    {fill.side === 'B' ? 'BUY' : 'SELL'}
-                  </span>
-                  <span className="text-xs text-blue-400 bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-800/50">
-                    TWAP #{twap.twapId}
+      <>
+        <div className="space-y-2">
+          {visibleTwap.map((twap, index) => {
+            const { fill } = twap;
+            const { action, type } = formatFillDirection(fill);
+            
+            return (
+              <div 
+                key={`${twap.twapId}-${index}`}
+                className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">{fill.coin}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      type === 'Long'
+                        ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' 
+                        : 'bg-red-950/50 text-red-400 border border-red-800/50'
+                    }`}>
+                      {type.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-blue-400 bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-800/50">
+                      TWAP #{twap.twapId}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500">{formatTimeAgo(fill.time)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-300">
+                    <span className="text-gray-400">{action} </span>
+                    <span className="text-white">{formatNumber(fill.sz, 4)} {fill.coin}</span>
+                    <span className="text-gray-400"> @ </span>
+                    <span className="text-white">${formatNumber(fill.px)}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 mono">
+                    Fee: ${formatNumber(fill.fee)}
                   </span>
                 </div>
-                <span className="text-xs text-gray-500">{formatTimeAgo(fill.time)}</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">
-                  ${formatNumber(fill.px)} × {formatNumber(fill.sz, 4)}
-                </span>
-                <span className="text-gray-500 mono text-xs">
-                  Fee: ${formatNumber(fill.fee)}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+        {renderLoadMore('twap', twapFills.length)}
+      </>
     );
   };
 
@@ -530,26 +589,6 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
     }
   };
 
-  // Get count for tab badge
-  const getTabCount = (tab: TradingActivityTab): number | null => {
-    if (!loadedTabs.has(tab) && tab !== 'trades') return null;
-    
-    switch (tab) {
-      case 'orders':
-        return openOrders.length || null;
-      case 'fills':
-        return fills.length > 0 ? Math.min(fills.length, 50) : null;
-      case 'trades':
-        return closedTrades.length > 0 ? Math.min(closedTrades.length, 50) : null;
-      case 'funds':
-        return ledgerUpdates.length > 0 ? Math.min(ledgerUpdates.length, 50) : null;
-      case 'twap':
-        return twapFills.length || null;
-      default:
-        return null;
-    }
-  };
-
   return (
     <div className="bg-gray-950/50 rounded-xl border border-emerald-900/20 overflow-hidden">
       {/* Header */}
@@ -557,32 +596,23 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
         <h3 className="text-white font-bold text-sm uppercase tracking-wider">Trading Activity</h3>
       </div>
       
-      {/* Tab Bar - Scrollable */}
+      {/* Tab Bar - Clean text only, scrollable */}
       <div className="border-b border-emerald-900/20 overflow-x-auto hide-scrollbar">
         <div className="flex min-w-max">
           {TABS.map((tab) => {
-            const count = getTabCount(tab.id);
             const isActive = activeTab === tab.id;
             
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap ${
+                className={`px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap ${
                   isActive
                     ? 'text-emerald-400'
                     : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
-                {tab.icon}
-                <span>{tab.label}</span>
-                {count !== null && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    isActive ? 'bg-emerald-900/50 text-emerald-400' : 'bg-gray-800 text-gray-500'
-                  }`}>
-                    {count}
-                  </span>
-                )}
+                {tab.label}
                 {isActive && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500" />
                 )}
