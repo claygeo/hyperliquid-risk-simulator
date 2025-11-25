@@ -167,15 +167,19 @@ function App() {
     setIsPulling(false);
   }, [pullDistance, savedAddress, isRefreshing, fetchPositions]);
 
-  // Handle fetching positions
+  // Handle fetching positions - clear data immediately for faster perceived switch
   const handleFetchPositions = async (address: string) => {
+    // Clear previous data immediately
+    setSelectedPosition(null);
+    setLivePositions([]);
+    resetSimulation();
+    setCandleData([]);
+    
     localStorage.setItem('hyperliquid_address', address);
     setSavedAddress(address);
     
     await fetchPositions(address);
-    setSelectedPosition(null);
-    resetSimulation();
-    setCandleData([]);
+    
     if (isMobile && positions.length > 0) {
       setShowPositions(true);
     }
@@ -185,6 +189,10 @@ function App() {
   const handleClearAddress = () => {
     localStorage.removeItem('hyperliquid_address');
     setSavedAddress(null);
+    setSelectedPosition(null);
+    setLivePositions([]);
+    resetSimulation();
+    setCandleData([]);
   };
 
   // Handle position selection
@@ -406,7 +414,7 @@ function App() {
           )}
         </div>
 
-        {/* Bottom Navigation */}
+        {/* Bottom Navigation - Centered text, clean look */}
         {selectedPosition && (
           <nav 
             className="fixed inset-x-0 bottom-0 z-50"
@@ -421,30 +429,30 @@ function App() {
               className="bg-black/95 backdrop-blur-xl border-t border-emerald-900/30 shadow-2xl"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
-              <div className="grid grid-cols-3 h-16">
+              <div className="grid grid-cols-3 h-12">
                 <button
                   onClick={() => setShowPositions(!showPositions)}
-                  className={`flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 ${
+                  className={`flex items-center justify-center transition-colors active:scale-95 ${
                     showPositions ? 'text-emerald-400' : 'text-gray-500'
                   }`}
                 >
-                  <span className="text-xs font-semibold">Positions</span>
+                  <span className="text-sm font-medium">Positions</span>
                 </button>
                 <button
                   onClick={() => setShowControls(!showControls)}
-                  className={`flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 ${
+                  className={`flex items-center justify-center transition-colors active:scale-95 ${
                     showControls ? 'text-emerald-400' : 'text-gray-500'
                   }`}
                 >
-                  <span className="text-xs font-semibold">Simulate</span>
+                  <span className="text-sm font-medium">Simulate</span>
                 </button>
                 <button
                   onClick={() => setShowActivity(!showActivity)}
-                  className={`flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 ${
+                  className={`flex items-center justify-center transition-colors active:scale-95 ${
                     showActivity ? 'text-emerald-400' : 'text-gray-500'
                   }`}
                 >
-                  <span className="text-xs font-semibold">Activity</span>
+                  <span className="text-sm font-medium">Activity</span>
                 </button>
               </div>
             </div>

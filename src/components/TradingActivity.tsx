@@ -388,7 +388,7 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
     );
   };
 
-  // Render Deposits & Withdrawals
+  // Render Deposits & Withdrawals - Consistent styling with other tabs
   const renderFunds = () => {
     if (isLoading && !loadedTabs.has('funds')) return renderLoading();
     if (ledgerUpdates.length === 0) {
@@ -406,38 +406,32 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
             let amount = '0';
             let isPositive = false;
             let description = '';
-            let details = '';
             
             switch (delta.type) {
               case 'deposit':
                 amount = delta.usdc;
                 isPositive = true;
                 description = 'Deposit';
-                details = 'Added to account';
                 break;
               case 'withdraw':
                 amount = delta.usdc;
                 isPositive = false;
                 description = 'Withdrawal';
-                details = 'Withdrawn from account';
                 break;
               case 'accountClassTransfer':
                 amount = delta.usdc;
                 isPositive = !delta.toPerp;
-                description = delta.toPerp ? 'Transfer to Perp' : 'Transfer to Spot';
-                details = delta.toPerp ? 'Spot → Perpetual' : 'Perpetual → Spot';
+                description = delta.toPerp ? 'Transfer to Perp' : 'Transfer from Perp';
                 break;
               case 'spotTransfer':
                 amount = delta.usdcValue || delta.amount;
                 isPositive = delta.destination !== delta.user;
                 description = `${delta.token} Transfer`;
-                details = `${delta.destination?.slice(0, 6)}...${delta.destination?.slice(-4)}`;
                 break;
               case 'liquidation':
                 amount = delta.liquidatedPnl;
                 isPositive = parseFloat(delta.liquidatedPnl) > 0;
                 description = `${delta.coin} Liquidation`;
-                details = 'Position liquidated';
                 type = 'liquidation';
                 break;
               default:
@@ -445,63 +439,38 @@ export const TradingActivity = ({ address }: TradingActivityProps) => {
             }
             
             const numAmount = Math.abs(parseFloat(amount));
-            const timestamp = new Date(update.time);
-            const dateStr = timestamp.toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric',
-              year: timestamp.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-            });
-            const timeStr = timestamp.toLocaleTimeString('en-US', { 
-              hour: 'numeric', 
-              minute: '2-digit',
-              hour12: true 
-            });
-            const hashPreview = update.hash ? `${update.hash.slice(0, 8)}...` : '';
             
             return (
               <div 
                 key={`${update.hash}-${index}`}
                 className="bg-gray-900/50 rounded-lg p-3 border border-gray-800/50"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-sm font-semibold ${
-                        type === 'deposit' ? 'text-emerald-400' :
-                        type === 'withdraw' ? 'text-red-400' :
-                        type === 'liquidation' ? 'text-orange-400' :
-                        'text-blue-400'
-                      }`}>
-                        {description}
-                      </span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        type === 'deposit' ? 'bg-emerald-950/50 text-emerald-500 border border-emerald-900/50' :
-                        type === 'withdraw' ? 'bg-red-950/50 text-red-500 border border-red-900/50' :
-                        type === 'liquidation' ? 'bg-orange-950/50 text-orange-500 border border-orange-900/50' :
-                        'bg-blue-950/50 text-blue-500 border border-blue-900/50'
-                      }`}>
-                        {isPositive ? 'IN' : 'OUT'}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span>{dateStr} at {timeStr}</span>
-                        <span className="text-gray-600">•</span>
-                        <span>{formatTimeAgo(update.time)}</span>
-                      </div>
-                      {details && (
-                        <div className="text-gray-600">{details}</div>
-                      )}
-                      {hashPreview && (
-                        <div className="text-gray-700 mono text-[10px]">tx: {hashPreview}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={`font-bold mono text-base ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {isPositive ? '+' : '-'}${formatNumber(numAmount)}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">{description}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      type === 'deposit' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' :
+                      type === 'withdraw' ? 'bg-red-950/50 text-red-400 border border-red-800/50' :
+                      type === 'liquidation' ? 'bg-orange-950/50 text-orange-400 border border-orange-800/50' :
+                      'bg-blue-950/50 text-blue-400 border border-blue-800/50'
+                    }`}>
+                      {isPositive ? 'IN' : 'OUT'}
                     </span>
                   </div>
+                  <span className="text-xs text-gray-500">{formatTimeAgo(update.time)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">
+                    {new Date(update.time).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                  <span className={`font-bold mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isPositive ? '+' : '-'}${formatNumber(numAmount)}
+                  </span>
                 </div>
               </div>
             );

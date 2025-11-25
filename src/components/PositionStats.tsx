@@ -63,8 +63,8 @@ export const PositionStats = ({ position, simulationState }: PositionStatsProps)
         </div>
         {isSimulating && (
           <div className="mt-2 pt-2 border-t border-gray-800/50">
-            <div className="text-xs text-purple-400 font-medium">
-              ⚡ Simulated Result
+            <div className="text-xs text-gray-500 font-medium">
+              Simulated Result
             </div>
           </div>
         )}
